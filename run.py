@@ -80,7 +80,7 @@ def learning_schedule(batch_size, batch_denom, n_sequences, boundary_epochs, dec
     return learning_rate_fn
 
 def input_fn(is_training, data_dir, batch_size, num_epochs=1, num_gpus=None):
-    """Input_fn using the tf.data input pipeline for CIFAR-10 dataset.
+    """Input_fn using the tf.data input pipeline.
     Args:
     is_training: A boolean denoting whether the input is for training.
     data_dir: The directory containing the input data.
@@ -216,10 +216,8 @@ def main(args, model_function, input_function, shape=None):
                                                                                   batch_denom=128,
                                                                                   n_sequences=_NUM_SEQUENCES['train'], 
                                                                                   boundary_epochs=[100, 150, 200],
-                                                                                  decay_rates=[1, 0.1, 0.01, 0.001]), 
+                                                                                  decay_rates=[1, 0.1, 0.01, 0.001])
                                             })
-
-    batch_size, batch_denom, n_examples, boundary_epochs, decay_rates
 
     def input_fn_train():
         return input_function(is_training=True, data_dir=args.data_dir,
