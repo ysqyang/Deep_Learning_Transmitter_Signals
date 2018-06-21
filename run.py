@@ -2,17 +2,19 @@ import tensorflow as tf
 import argparse
 import os
 import conv1d_LSTM
+import numpy as np
 
 _LAYERS = None
 _NUM_CHANNELS = 2
 _NUM_CLASSES = 3
 _NUM_UNITS = 100
-_DEFAULT_SEQUENCE_BYTES = 
+_SEQUENCE_LENGTH = 100
+_DEFAULT_SEQUENCE_BYTES = 400
 _RECORD_BYTES = _DEFAULT_SEQUENCE_BYTES + 1     # The record is the signal sequence plus a one-byte label
 
 _NUM_SEQUENCES = {
-    'train': ,
-    'validation': ,
+    'train': 750,
+    'validation': 250,
 }
 
 _DATASET_NAME = None
@@ -32,9 +34,10 @@ def get_filenames(is_training, data_dir):
         return [os.path.join(data_dir, 'test_batch.bin')]
 
 
-def parse_record(raw_record, is_training):
-    
-    return signals, label
+def parse_record(record):   
+    label = record[0]
+    sequence = tf.reshape(record[1:], (_SEQUENCE_LENGTH, 2))
+    return sequence, label
 
 def preprocess(sequence, is_training):
     """Preprocess a signal sequence"""
@@ -54,19 +57,34 @@ def process_record_dataset(dataset, is_training, batch_size, shuffle_buffer, par
     # Parse the raw records into images and labels and batch them
     dataset = dataset.apply(
       tf.contrib.data.map_and_batch(
-          lambda value: parse_record_fn(value, is_training),
+          lambda v: parse_record_fn(v),
           batch_size=batch_size,
           num_parallel_batches=1,
           drop_remainder=False))
     
     # prefetch one batch at a time
     dataset.prefetch(1)
-
     return dataset
+
+def input_fn(is_training, data_dir, batch_size, num_epochs=2):
+    seq, labels = np.random.sample(size=(1000, 200)), np.random.randint(low=0, high=3, size=(1000,1)) 
+    data = np.c_[labels,seq]
+
+    dataset = tf.data.Dataset.from_tensor_slices(data)
+    
+    return process_record_dataset(
+      dataset=dataset,
+      is_training=is_training,
+      batch_size=batch_size,
+      shuffle_buffer=_NUM_SEQUENCES['train'],
+      parse_record_fn=parse_record,
+      num_epochs=num_epochs
+    )   
+
 
 def learning_schedule(batch_size, batch_denom, n_sequences, boundary_epochs, decay_rates):
     initial_learning_rate = 0.1 * batch_size / batch_denom
-    batches_per_epoch = n_examples / batch_size
+    batches_per_epoch = n_sequences / batch_size
 
     # multiply learning rate by 0.1 at 100, 150, and 200 epochs.
     boundaries = [int(batches_per_epoch * epoch) for epoch in boundary_epochs]
@@ -79,41 +97,12 @@ def learning_schedule(batch_size, batch_denom, n_sequences, boundary_epochs, dec
 
     return learning_rate_fn
 
-def input_fn(is_training, data_dir, batch_size, num_epochs=1, num_gpus=None):
-    """Input_fn using the tf.data input pipeline.
-    Args:
-    is_training: A boolean denoting whether the input is for training.
-    data_dir: The directory containing the input data.
-    batch_size: The number of samples per batch.
-    num_epochs: The number of epochs to repeat the dataset.
-    num_gpus: The number of gpus used for training.
-    Returns:
-    A dataset that can be used for iteration.
-    """
-    filenames = get_filenames(is_training, data_dir)
-    dataset = tf.data.FixedLengthRecordDataset(filenames, _RECORD_BYTES)
-
-    return process_record_dataset(
-      dataset=dataset,
-      is_training=is_training,
-      batch_size=batch_size,
-      shuffle_buffer=_NUM_IMAGES['train'],
-      parse_record_fn=parse_record,
-      num_epochs=num_epochs,
-      num_gpus=num_gpus,
-      examples_per_epoch=_NUM_IMAGES['train'] if is_training else None
-    )
-
-def conv1d_LSTM_model_fn(features, labels, mode, 
-                         layers, n_units, n_classes, 
-                         regularization_const, learning_rate_fn, momentum,
-                         data_format, loss_scale, dtype=Conv1d_LSTM_model.DEFAULT_DTYPE):
+def conv1d_LSTM_model_fn(features, labels, mode, params):
     """
     Args:
     features: tensor representing input sequences
     labels: tensor representing class labels for all input sequences
-    mode: current estimator mode; 
-    model_class: TensorFlow model class. 
+    mode: current estimator mode;  
     regularization_const: regularization constant used to regularize learned variables.
     learning_rate_fn: function that returns the current learning rate given
       the current global_step
@@ -127,9 +116,12 @@ def conv1d_LSTM_model_fn(features, labels, mode,
     current mode.
     """
 
-    tf.summary.image('signals', features, max_outputs=6)
-    features = tf.cast(features, dtype)
-    model = conv1d_LSTM.Conv1d_LSTM_Model(layers=layers, n_units=n_units, n_classes=_NUM_CLASSES, dtype=dtype)
+    #tf.summary.image('signals', features, max_outputs=6)
+    features = tf.cast(features, params['dtype'])
+    labels = tf.cast(labels, tf.int32)
+    model = conv1d_LSTM.Conv1d_LSTM_Model(layers=params['layers'], n_units=params['n_units'],
+                                          n_classes=params['n_classes'], dtype=params['dtype'])
+    
     logits = model(features, mode==tf.estimator.ModeKeys.TRAIN)
     logits = tf.cast(logits, tf.float32)
 
@@ -149,30 +141,33 @@ def conv1d_LSTM_model_fn(features, labels, mode,
 
     # Calculate loss, which includes softmax cross entropy and L2 regularization.
     # cross entropy part
-    loss = tf.losses.softmax_cross_entropy(logits=logits, onehot_labels=labels)
+    cross_entropy = tf.losses.sparse_softmax_cross_entropy(logits=logits, labels=labels)
 
     # Create a tensor named cross_entropy for logging purposes.
     tf.identity(cross_entropy, name='cross_entropy')
     tf.summary.scalar('cross_entropy', cross_entropy)
 
     # Add regularization term to loss.
-    l2_loss = regularization_const * tf.add_n(
+    l2_loss = params['regularization_const'] * tf.add_n(
       [tf.nn.l2_loss(tf.cast(v, tf.float32)) for v in tf.trainable_variables()])
+
+    tf.summary.scalar('l2_loss', l2_loss)
+    loss = cross_entropy + l2_loss
 
     if mode == tf.estimator.ModeKeys.TRAIN:
         global_step = tf.train.get_or_create_global_step()
-        learning_rate = learning_rate_fn(global_step)
+        learning_rate = params['learning_rate_fn'](global_step)
         # Create a tensor named learning_rate for logging purposes
         tf.identity(learning_rate, name='learning_rate')
         tf.summary.scalar('learning_rate', learning_rate)
-        optimizer = tf.train.MomentumOptimizer(learning_rate=learning_rate, momentum=momentum)
+        optimizer = tf.train.MomentumOptimizer(learning_rate=learning_rate, momentum=params['momentum'])
 
-        if loss_scale != 1:
+        if params['loss_scale'] != 1:
             #multiply by loss_scale to avoid underflow
-            scaled_grad_vars = optimizer.compute_gradients(loss * loss_scale)
+            scaled_grad_vars = optimizer.compute_gradients(loss * params['loss_scale'])
 
             # scale the gradients back to original before passing them to optimizer.
-            unscaled_grad_vars = [(grad / loss_scale, var) for grad, var in scaled_grad_vars]
+            unscaled_grad_vars = [(grad / params['loss_scale'], var) for grad, var in scaled_grad_vars]
             minimize_op = optimizer.apply_gradients(unscaled_grad_vars, global_step)
         else:
             minimize_op = optimizer.minimize(loss, global_step)
@@ -182,6 +177,8 @@ def conv1d_LSTM_model_fn(features, labels, mode,
     else:
         train_op = None
 
+    
+    accuracy = tf.metrics.accuracy(labels, predictions['classes'])
     metrics = {'accuracy': accuracy}
 
     # Create a tensor named train_accuracy for logging purposes
@@ -216,7 +213,8 @@ def main(args, model_function, input_function, shape=None):
                                                                                   batch_denom=128,
                                                                                   n_sequences=_NUM_SEQUENCES['train'], 
                                                                                   boundary_epochs=[100, 150, 200],
-                                                                                  decay_rates=[1, 0.1, 0.01, 0.001])
+                                                                                  decay_rates=[1, 0.1, 0.01, 0.001]),
+                                            'dtype': conv1d_LSTM.DEFAULT_DTYPE
                                             })
 
     def input_fn_train():
@@ -251,10 +249,10 @@ if __name__ == '__main__':
     #parser.add_argument('--reg', type=float, default=1e-4, help='regularization constant')
     #parser.add_argument('--momentum', type=float, default=0.9, help='momentum used in momentum optimizer')
     parser.add_argument('--data_format', type=str, default='channels_last', help='data format of input features')
-    parser.add_argument('--batch_size', type=int, default=128, help='batch size')
-    parser.add_argument('--training_epochs', type=int, default=250, help='number of training epochs')
+    parser.add_argument('--batch_size', type=int, default=75, help='batch size')
+    parser.add_argument('--train_epochs', type=int, default=250, help='number of training epochs')
     parser.add_argument('--epochs_between_evals', type=int, default=10, help='number of epochs between successive evaluations')
-    parser.add_argument('--max_train_steps', type=int, default=10000, help='maxumum number of training steps'
+    parser.add_argument('--max_train_steps', type=int, default=10000, help='maxumum number of training steps')
     parser.add_argument('--loss_scale', type=int, default=1, help='scaling factor for loss')   
     parser.add_argument('--data_dir', type=str, default=None, help='directory to read data from')
     parser.add_argument('--model_dir', type=int, default=None, help='directory to save model parameters to')

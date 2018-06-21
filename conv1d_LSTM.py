@@ -24,7 +24,7 @@ class Conv1d_LSTM_Model():
     def _model_variable_scope(self):
         return tf.variable_scope('Conv1d_LSTM_model', custom_getter=self._custom_dtype_getter)
     
-    def __call__(inputs, mode):
+    def __call__(self, inputs, is_training):
         with self._model_variable_scope():
             # if layers arg is provided, transform the inputs according to 
             # the convolution or pooling specs in layers
@@ -44,6 +44,6 @@ class Conv1d_LSTM_Model():
                 cell = tf.contrib.rnn.MultiRNNCell(multi_cells)
             elif type(self.n_units) is int:
                 cell = tf.contrib.rnn.LSTMCell(self.n_units) 
-            outputs, _ = tf.nn.dynamic_rnn(cell=cell, inputs=inputs)
-            outputs = tf.layers.dense(inputs=outputs[-1], units=self.n_classes)
+            outputs, _ = tf.nn.dynamic_rnn(cell=cell, inputs=inputs, dtype=DEFAULT_DTYPE)
+            outputs = tf.layers.dense(inputs=outputs[:,-1, :], units=self.n_classes)
             return outputs
