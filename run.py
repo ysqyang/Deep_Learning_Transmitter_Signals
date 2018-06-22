@@ -9,9 +9,11 @@ _NUM_CHANNELS = 2
 _NUM_CLASSES = 3
 _NUM_UNITS = 100
 _SEQUENCE_LENGTH = 100
+_DEFAULT_DECODE_DTYPE = tf.unit16
 _DEFAULT_SEQUENCE_BYTES = 400
 _RECORD_BYTES = _DEFAULT_SEQUENCE_BYTES + 1     # The record is the signal sequence plus a one-byte label
 
+_NUM_DATA_FILES = []
 _NUM_SEQUENCES = {
     'train': 750,
     'validation': 250,
@@ -26,17 +28,23 @@ def get_filenames(is_training, data_dir):
     assert os.path.exists(data_dir), ('data file does not exist')
 
     if is_training:
-        return [
-            os.path.join(data_dir, 'train_batch_{}.bin'.format(i))
-            for i in range(1, _NUM_DATA_FILES + 1)
-        ]
+        filenames = []
+        for i in range(_NUM_CLASSES):
+			class_files = [(os.path.join(data_dir, str(i), '.ip'.format(j)), i)
+            for j in range(1, _NUM_DATA_FILES[i] + 1)]
+			filenames += class_files
+        return filenames 
     else:
-        return [os.path.join(data_dir, 'test_batch.bin')]
+		filenames = []
+		for i in range(_NUM_CLASSES):
+			class_files = [(os.path.join(data_dir, str(i), '.ip'.format(j)), i)
+            for j in range(1, _NUM_DATA_FILES[i] + 1)]
+			filenames += class_files
+        return filenames
 
-
-def parse_record(record):   
-    label = record[0]
-    sequence = tf.reshape(record[1:], (_SEQUENCE_LENGTH, 2))
+def parse_record(raw_record):   
+    record = tf.decode_raw(raw_record, _DEFAULT_DECODE_DTYPE)
+    sequence = tf.reshape(record, (_SEQUENCE_LENGTH, 2))
     return sequence, label
 
 def preprocess(sequence, is_training):
@@ -67,10 +75,8 @@ def process_record_dataset(dataset, is_training, batch_size, shuffle_buffer, par
     return dataset
 
 def input_fn(is_training, data_dir, batch_size, num_epochs=2):
-    seq, labels = np.random.sample(size=(1000, 200)), np.random.randint(low=0, high=3, size=(1000,1)) 
-    data = np.c_[labels,seq]
-
-    dataset = tf.data.Dataset.from_tensor_slices(data)
+    filenames = get_filenames(is_training, data_dir)
+    dataset = tf.data.FixedLengthRecordDataset(filenames, _RECORD_BYTES)
     
     return process_record_dataset(
       dataset=dataset,
@@ -80,7 +86,6 @@ def input_fn(is_training, data_dir, batch_size, num_epochs=2):
       parse_record_fn=parse_record,
       num_epochs=num_epochs
     )   
-
 
 def learning_schedule(batch_size, batch_denom, n_sequences, boundary_epochs, decay_rates):
     initial_learning_rate = 0.1 * batch_size / batch_denom
