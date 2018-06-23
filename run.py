@@ -8,11 +8,10 @@ _LAYERS = None
 _NUM_CHANNELS = 2
 _NUM_CLASSES = 3
 _NUM_UNITS = 100
-_SEQUENCE_LENGTH = 100
 _DEFAULT_DECODE_DTYPE = tf.unit16
+_DEFAULT_INT_BYTES = 2
 _DEFAULT_SEQUENCE_BYTES = 400
 _RECORD_BYTES = _DEFAULT_SEQUENCE_BYTES + 1     # The record is the signal sequence plus a one-byte label
-
 _NUM_DATA_FILES = []
 _NUM_SEQUENCES = {
     'train': 750,
@@ -21,30 +20,21 @@ _NUM_SEQUENCES = {
 
 _DATASET_NAME = None
 
-def get_filenames(is_training, data_dir):
+def get_filename(is_training, data_dir):
     """Returns a list of filenames."""
     data_dir = os.path.join(data_dir, '')
 
     assert os.path.exists(data_dir), ('data file does not exist')
 
     if is_training:
-        filenames = []
-        for i in range(_NUM_CLASSES):
-			class_files = [(os.path.join(data_dir, str(i), '.ip'.format(j)), i)
-            for j in range(1, _NUM_DATA_FILES[i] + 1)]
-			filenames += class_files
-        return filenames 
+        return os.path.join(data_dir, '') 
     else:
-		filenames = []
-		for i in range(_NUM_CLASSES):
-			class_files = [(os.path.join(data_dir, str(i), '.ip'.format(j)), i)
-            for j in range(1, _NUM_DATA_FILES[i] + 1)]
-			filenames += class_files
-        return filenames
+        return os.path.join(data_dir, '')
 
 def parse_record(raw_record):   
     record = tf.decode_raw(raw_record, _DEFAULT_DECODE_DTYPE)
-    sequence = tf.reshape(record, (_SEQUENCE_LENGTH, 2))
+    label = record[0]
+    sequence = tf.reshape(record[1:], (int(_DEFAULT_SEQUENCE_BYTES/(2*_DEFAULT_INT_BYTES), 2)))
     return sequence, label
 
 def preprocess(sequence, is_training):
@@ -75,8 +65,8 @@ def process_record_dataset(dataset, is_training, batch_size, shuffle_buffer, par
     return dataset
 
 def input_fn(is_training, data_dir, batch_size, num_epochs=2):
-    filenames = get_filenames(is_training, data_dir)
-    dataset = tf.data.FixedLengthRecordDataset(filenames, _RECORD_BYTES)
+    filename = get_filename(is_training, data_dir)
+    dataset = tf.data.FixedLengthRecordDataset(filename, _RECORD_BYTES)
     
     return process_record_dataset(
       dataset=dataset,
