@@ -10,8 +10,8 @@ _NUM_CLASSES = 3
 _NUM_UNITS = 100
 _DEFAULT_DECODE_DTYPE = tf.unit16
 _DEFAULT_INT_BYTES = 2
-_DEFAULT_SEQUENCE_BYTES = 400
-_RECORD_BYTES = _DEFAULT_SEQUENCE_BYTES + 1     # The record is the signal sequence plus a one-byte label
+_DEFAULT_SEQUENCE_LENGTH = 1000
+_RECORD_BYTES = _DEFAULT_SEQUENCE_LENGTH*2*_DEFAULT_INT_BYTES + 1     # The record is the signal sequence plus a one-byte label
 _NUM_DATA_FILES = []
 _NUM_SEQUENCES = {
     'train': 750,
@@ -34,7 +34,7 @@ def get_filename(is_training, data_dir):
 def parse_record(raw_record):   
     record = tf.decode_raw(raw_record, _DEFAULT_DECODE_DTYPE)
     label = record[0]
-    sequence = tf.reshape(record[1:], (int(_DEFAULT_SEQUENCE_BYTES/(2*_DEFAULT_INT_BYTES), 2)))
+    sequence = tf.reshape(record[1:], (_DEFAULT_SEQUENCE_LENGTH, 2))
     return sequence, label
 
 def preprocess(sequence, is_training):
@@ -183,7 +183,7 @@ def conv1d_LSTM_model_fn(features, labels, mode, params):
     return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions, loss=loss, 
                                       train_op=train_op, eval_metric_ops=metrics)
 
-def main(args, model_function, input_function, shape=None):
+def main(args, model_function, input_function):
     """
     Args:
     args: parsed flags.
@@ -192,8 +192,6 @@ def main(args, model_function, input_function, shape=None):
     input_function: the function that processes the dataset and returns a
     dataset that the estimator can train on. This will be wrapped with
     all the relevant flags for running and passed to estimator.
-    shape: list of ints representing the shape of the images used for training.
-    This is only used if args.export_dir is passed.
     """
     classifier = tf.estimator.Estimator(model_fn=model_function, model_dir=args.model_dir, 
                                         params={
@@ -225,22 +223,12 @@ def main(args, model_function, input_function, shape=None):
     # training and evaluating
     for cycle_index in range(total_training_cycle):
         tf.logging.info('Starting a training cycle: {}/{}'.format(cycle_index, total_training_cycle))
-
         classifier.train(input_fn=input_fn_train, max_steps=args.max_train_steps)
-
         tf.logging.info('Starting to evaluate.')
-
-        # args.max_train_steps is generally associated with testing and
-        # profiling. As a result it is frequently called with synthetic data, which
-        # will iterate forever. Passing steps=args.max_train_steps allows the
-        # eval (which is generally unimportant in those circumstances) to terminate.
-        # Note that eval will run for max_train_steps each loop, regardless of the
-        # global_step count.
         eval_results = classifier.evaluate(input_fn=input_fn_eval, steps=args.max_train_steps)
 
 if __name__ == '__main__':  
     parser = argparse.ArgumentParser()  
-
     #parser.add_argument('--reg', type=float, default=1e-4, help='regularization constant')
     #parser.add_argument('--momentum', type=float, default=0.9, help='momentum used in momentum optimizer')
     parser.add_argument('--data_format', type=str, default='channels_last', help='data format of input features')
