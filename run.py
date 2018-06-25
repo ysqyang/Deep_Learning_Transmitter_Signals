@@ -8,33 +8,35 @@ _LAYERS = None
 _NUM_CHANNELS = 2
 _NUM_CLASSES = 3
 _NUM_UNITS = 100
-_DEFAULT_DECODE_DTYPE = tf.unit16
-_DEFAULT_INT_BYTES = 2
-_DEFAULT_SEQUENCE_LENGTH = 1000
-_RECORD_BYTES = _DEFAULT_SEQUENCE_LENGTH*2*_DEFAULT_INT_BYTES + 1     # The record is the signal sequence plus a one-byte label
-_NUM_DATA_FILES = []
+_DEFAULT_DECODE_DTYPE = tf.uint8
+_DEFAULT_SEQUENCE_LENGTH = 100
+'''
+The record is the signal sequence plus a one-byte label.
+Each sequence has _DEFAULT_SEQUENCE_LENGTH time points, 
+each of which consists of 2 points  
+'''
+_RECORD_BYTES = _DEFAULT_SEQUENCE_LENGTH*2 + 1     
+_NUM_DATA_FILES = [20,0,0]
 _NUM_SEQUENCES = {
-    'train': 750,
-    'validation': 250,
+    'train': 2000,
+    'validation': 2000
 }
 
 _DATASET_NAME = None
 
 def get_filename(is_training, data_dir):
     """Returns a list of filenames."""
-    data_dir = os.path.join(data_dir, '')
-
     assert os.path.exists(data_dir), ('data file does not exist')
 
     if is_training:
-        return os.path.join(data_dir, '') 
+        return os.path.join(data_dir, 'train') 
     else:
-        return os.path.join(data_dir, '')
+        return os.path.join(data_dir, 'test')
 
 def parse_record(raw_record):   
     record = tf.decode_raw(raw_record, _DEFAULT_DECODE_DTYPE)
     label = record[0]
-    sequence = tf.reshape(record[1:], (_DEFAULT_SEQUENCE_LENGTH, 2))
+    sequence = tf.reshape(record[1:], (_DEFAULT_SEQUENCE_LENGTH, _NUM_CHANNELS))
     return sequence, label
 
 def preprocess(sequence, is_training):
@@ -223,6 +225,7 @@ def main(args, model_function, input_function):
     # training and evaluating
     for cycle_index in range(total_training_cycle):
         tf.logging.info('Starting a training cycle: {}/{}'.format(cycle_index, total_training_cycle))
+        #print('starting to train')
         classifier.train(input_fn=input_fn_train, max_steps=args.max_train_steps)
         tf.logging.info('Starting to evaluate.')
         eval_results = classifier.evaluate(input_fn=input_fn_eval, steps=args.max_train_steps)
@@ -237,7 +240,7 @@ if __name__ == '__main__':
     parser.add_argument('--epochs_between_evals', type=int, default=10, help='number of epochs between successive evaluations')
     parser.add_argument('--max_train_steps', type=int, default=10000, help='maxumum number of training steps')
     parser.add_argument('--loss_scale', type=int, default=1, help='scaling factor for loss')   
-    parser.add_argument('--data_dir', type=str, default=None, help='directory to read data from')
+    parser.add_argument('--data_dir', type=str, default=os.getcwd(), help='directory to read data from')
     parser.add_argument('--model_dir', type=int, default=None, help='directory to save model parameters to')
     
     args = parser.parse_args()  
