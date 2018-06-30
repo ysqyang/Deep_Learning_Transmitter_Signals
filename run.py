@@ -6,32 +6,30 @@ import numpy as np
 
 _LAYERS = None
 _NUM_CHANNELS = 2
-_NUM_CLASSES = 3
-_NUM_UNITS = 100
+_NUM_CLASSES = 2
+_NUM_UNITS = 200
 _DEFAULT_DECODE_DTYPE = tf.uint8
-_DEFAULT_SEQUENCE_LENGTH = 100
+_DEFAULT_SEQUENCE_LENGTH = 1000
 '''
 The record is the signal sequence plus a one-byte label.
 Each sequence has _DEFAULT_SEQUENCE_LENGTH time points, 
 each of which consists of 2 points  
 '''
 _RECORD_BYTES = _DEFAULT_SEQUENCE_LENGTH*2 + 1     
-_NUM_DATA_FILES = [20,0,0]
 _NUM_SEQUENCES = {
-    'train': 2000,
-    'validation': 2000
+    'train': 20000,
+    'validation': 5000
 }
 
 _DATASET_NAME = None
 
 def get_filename(is_training, data_dir):
-    """Returns a list of filenames."""
     assert os.path.exists(data_dir), ('data file does not exist')
 
     if is_training:
         return os.path.join(data_dir, 'train') 
     else:
-        return os.path.join(data_dir, 'test')
+        return os.path.join(data_dir, 'validation')
 
 def parse_record(raw_record):   
     record = tf.decode_raw(raw_record, _DEFAULT_DECODE_DTYPE)
@@ -207,7 +205,7 @@ def main(args, model_function, input_function):
                                             'learning_rate_fn': learning_schedule(batch_size=args.batch_size, 
                                                                                   batch_denom=128,
                                                                                   n_sequences=_NUM_SEQUENCES['train'], 
-                                                                                  boundary_epochs=[100, 150, 200],
+                                                                                  boundary_epochs=[5, 15, 20],
                                                                                   decay_rates=[1, 0.1, 0.01, 0.001]),
                                             'dtype': conv1d_LSTM.DEFAULT_DTYPE
                                             })
@@ -235,13 +233,13 @@ if __name__ == '__main__':
     #parser.add_argument('--reg', type=float, default=1e-4, help='regularization constant')
     #parser.add_argument('--momentum', type=float, default=0.9, help='momentum used in momentum optimizer')
     parser.add_argument('--data_format', type=str, default='channels_last', help='data format of input features')
-    parser.add_argument('--batch_size', type=int, default=75, help='batch size')
-    parser.add_argument('--train_epochs', type=int, default=250, help='number of training epochs')
-    parser.add_argument('--epochs_between_evals', type=int, default=10, help='number of epochs between successive evaluations')
+    parser.add_argument('--batch_size', type=int, default=200, help='batch size')
+    parser.add_argument('--train_epochs', type=int, default=25, help='number of training epochs')
+    parser.add_argument('--epochs_between_evals', type=int, default=5, help='number of epochs between successive evaluations')
     parser.add_argument('--max_train_steps', type=int, default=10000, help='maxumum number of training steps')
     parser.add_argument('--loss_scale', type=int, default=1, help='scaling factor for loss')   
     parser.add_argument('--data_dir', type=str, default=os.getcwd(), help='directory to read data from')
-    parser.add_argument('--model_dir', type=int, default=None, help='directory to save model parameters to')
+    parser.add_argument('--model_dir', type=str, default=os.path.join(os.getcwd(), 'model'), help='directory to save model parameters to')
     
     args = parser.parse_args()  
   
