@@ -17,19 +17,17 @@ each of which consists of 2 points
 '''
 _RECORD_BYTES = _DEFAULT_SEQUENCE_LENGTH*2 + 1     
 _NUM_SEQUENCES = {
-    'train': 20000,
-    'validation': 5000
+    'train': 40000,
+    'validation': 10000
 }
 
-_DATASET_NAME = None
-
-def get_filename(is_training, data_dir):
+def get_filename(is_training, data_dir, sensor_type):
     assert os.path.exists(data_dir), ('data file does not exist')
 
     if is_training:
-        return os.path.join(data_dir, 'train') 
+        return os.path.join(data_dir, 'train_r{}'.format(sensor_type)) 
     else:
-        return os.path.join(data_dir, 'validation')
+        return os.path.join(data_dir, 'validation_r{}'.format(sensor_type))
 
 def parse_record(raw_record):   
     record = tf.decode_raw(raw_record, _DEFAULT_DECODE_DTYPE)
@@ -64,8 +62,8 @@ def process_record_dataset(dataset, is_training, batch_size, shuffle_buffer, par
     dataset.prefetch(1)
     return dataset
 
-def input_fn(is_training, data_dir, batch_size, num_epochs=2):
-    filename = get_filename(is_training, data_dir)
+def input_fn(is_training, data_dir, batch_size, sensor_type, num_epochs=1):
+    filename = get_filename(is_training, data_dir, sensor_type)
     dataset = tf.data.FixedLengthRecordDataset(filename, _RECORD_BYTES)
     
     return process_record_dataset(
@@ -76,6 +74,26 @@ def input_fn(is_training, data_dir, batch_size, num_epochs=2):
       parse_record_fn=parse_record,
       num_epochs=num_epochs
     )   
+
+def build_tensor_serving_input_receiver_fn(shape, dtype=tf.float32,
+                                           batch_size=1):
+    """Returns a input_receiver_fn that can be used during serving.
+    Args:
+    shape: list representing target size of a single example.
+    dtype: the expected datatype for the input example
+    batch_size: number of input tensors that will be passed for prediction
+    Returns:
+    A function that itself returns a TensorServingInputReceiver.
+    """  
+    def serving_input_receiver_fn():
+        # Prep a placeholder where the input example will be fed in
+        features = tf.placeholder(
+            dtype=dtype, shape=[batch_size] + shape, name='input_tensor')
+
+        return tf.estimator.export.TensorServingInputReceiver(
+            features=features, receiver_tensors=features)
+
+    return serving_input_receiver_fn
 
 def learning_schedule(batch_size, batch_denom, n_sequences, boundary_epochs, decay_rates):
     initial_learning_rate = 0.1 * batch_size / batch_denom
@@ -110,9 +128,8 @@ def conv1d_LSTM_model_fn(features, labels, mode, params):
     EstimatorSpec parameterized according to the input params and the
     current mode.
     """
-
-    #tf.summary.image('signals', features, max_outputs=6)
     features = tf.cast(features, params['dtype'])
+    tf.summary.audio(name='signals', tensor=features, sample_rate=100)
     labels = tf.cast(labels, tf.int32)
     model = conv1d_LSTM.Conv1d_LSTM_Model(layers=params['layers'], n_units=params['n_units'],
                                           n_classes=params['n_classes'], dtype=params['dtype'])
@@ -151,11 +168,11 @@ def conv1d_LSTM_model_fn(features, labels, mode, params):
 
     if mode == tf.estimator.ModeKeys.TRAIN:
         global_step = tf.train.get_or_create_global_step()
-        learning_rate = params['learning_rate_fn'](global_step)
+        #learning_rate = params['learning_rate_fn'](global_step)
         # Create a tensor named learning_rate for logging purposes
-        tf.identity(learning_rate, name='learning_rate')
-        tf.summary.scalar('learning_rate', learning_rate)
-        optimizer = tf.train.MomentumOptimizer(learning_rate=learning_rate, momentum=params['momentum'])
+        #tf.identity(learning_rate, name='learning_rate')
+        #tf.summary.scalar('learning_rate', learning_rate)
+        optimizer = tf.train.AdamOptimizer()
 
         if params['loss_scale'] != 1:
             #multiply by loss_scale to avoid underflow
@@ -183,7 +200,7 @@ def conv1d_LSTM_model_fn(features, labels, mode, params):
     return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions, loss=loss, 
                                       train_op=train_op, eval_metric_ops=metrics)
 
-def main(args, model_function, input_function):
+def main(args, model_function, input_function, shape):
     """
     Args:
     args: parsed flags.
@@ -192,31 +209,53 @@ def main(args, model_function, input_function):
     input_function: the function that processes the dataset and returns a
     dataset that the estimator can train on. This will be wrapped with
     all the relevant flags for running and passed to estimator.
+    shape: list of ints representing the shape of the inputs used for training.
     """
-    classifier = tf.estimator.Estimator(model_fn=model_function, model_dir=args.model_dir, 
+    if args.sensor_type not in range(1, _NUM_CLASSES+1):
+        print('Sensor type must be between 1 and {}'.format(_NUM_CLASSES))
+        return
+
+    model_dir = 'model_r{}'.format(args.sensor_type)
+    export_dir = 'export_r{}'.format(args.sensor_type)
+    try:
+        os.makedirs(model_dir)
+    except:
+        print('model directory already exists. Please specify a different directory')
+        return
+
+    try:
+        os.makedirs(export_dir)
+    except:
+        print('export directory already exists. Please specify a different directory')
+        return
+    
+    classifier = tf.estimator.Estimator(model_fn=model_function, 
+                                        model_dir=model_dir, 
                                         params={
                                             'layers': _LAYERS,
                                             'n_units': _NUM_UNITS,
                                             'n_classes': _NUM_CLASSES, 
                                             'regularization_const': 1e-4,
-                                            'momentum': 0.9, 
+                                            #'momentum': 0.9,
                                             'data_format': args.data_format,
                                             'loss_scale': args.loss_scale,
-                                            'learning_rate_fn': learning_schedule(batch_size=args.batch_size, 
-                                                                                  batch_denom=128,
-                                                                                  n_sequences=_NUM_SEQUENCES['train'], 
-                                                                                  boundary_epochs=[5, 15, 20],
-                                                                                  decay_rates=[1, 0.1, 0.01, 0.001]),
                                             'dtype': conv1d_LSTM.DEFAULT_DTYPE
+                                            #'learning_rate_fn': learning_schedule(batch_size=args.batch_size, 
+                                            #                                      batch_denom=128,
+                                            #                                      n_sequences=_NUM_SEQUENCES['train'], 
+                                            #                                      boundary_epochs=[5, 15, 20],
+                                            #                                      decay_rates=[1, 0.1, 0.01, 0.001]),            
                                             })
 
     def input_fn_train():
         return input_function(is_training=True, data_dir=args.data_dir,
-                              batch_size=args.batch_size, num_epochs=args.epochs_between_evals)
+                              batch_size=args.batch_size, sensor_type=args.sensor_type,
+                              num_epochs=args.epochs_between_evals)
 
     def input_fn_eval():
         return input_function(is_training=False, data_dir=args.data_dir,
-                              batch_size=args.batch_size, num_epochs=1)
+                              batch_size=args.batch_size, sensor_type=args.sensor_type,
+                              num_epochs=1)
 
     total_training_cycle = args.train_epochs // args.epochs_between_evals
     
@@ -227,20 +266,23 @@ def main(args, model_function, input_function):
         classifier.train(input_fn=input_fn_train, max_steps=args.max_train_steps)
         tf.logging.info('Starting to evaluate.')
         eval_results = classifier.evaluate(input_fn=input_fn_eval, steps=args.max_train_steps)
+   
+    # Exports a saved model for the given classifier.
+    input_receiver_fn = build_tensor_serving_input_receiver_fn(
+        shape, batch_size=args.batch_size)
+    classifier.export_savedmodel(export_dir, input_receiver_fn)
 
 if __name__ == '__main__':  
     parser = argparse.ArgumentParser()  
-    #parser.add_argument('--reg', type=float, default=1e-4, help='regularization constant')
-    #parser.add_argument('--momentum', type=float, default=0.9, help='momentum used in momentum optimizer')
+    parser.add_argument('--sensor_type', type=int, default=None, help='sensor type')
     parser.add_argument('--data_format', type=str, default='channels_last', help='data format of input features')
     parser.add_argument('--batch_size', type=int, default=200, help='batch size')
-    parser.add_argument('--train_epochs', type=int, default=25, help='number of training epochs')
-    parser.add_argument('--epochs_between_evals', type=int, default=5, help='number of epochs between successive evaluations')
+    parser.add_argument('--train_epochs', type=int, default=250, help='number of training epochs')
+    parser.add_argument('--epochs_between_evals', type=int, default=10, help='number of epochs between successive evaluations')
     parser.add_argument('--max_train_steps', type=int, default=10000, help='maxumum number of training steps')
     parser.add_argument('--loss_scale', type=int, default=1, help='scaling factor for loss')   
     parser.add_argument('--data_dir', type=str, default=os.getcwd(), help='directory to read data from')
-    parser.add_argument('--model_dir', type=str, default=os.path.join(os.getcwd(), 'model'), help='directory to save model parameters to')
-    
+
     args = parser.parse_args()  
   
     main(args, conv1d_LSTM_model_fn, input_fn)

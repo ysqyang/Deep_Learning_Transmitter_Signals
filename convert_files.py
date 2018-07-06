@@ -10,16 +10,11 @@ import run
 
 _DISTANCES = [5, 10, 15, 20]
 
-def convert(data_dir, out_file_name, num_sequences_per_file):   
+def convert(sensor_type, data_dir, out_file_name, num_sequences_per_file):   
     with open(out_file_name, mode='wb') as out_file:
         for i in range(run._NUM_CLASSES):
             for d in _DISTANCES:
-                file_path = os.path.join(data_dir, 'data', str(i), 't{}_r1_{}m'.format(i+1, d))
-                '''
-                if data file does not contain enough bytes to extract
-                num_sequences_per_file sequences of _DEFAULT_SEQUENCE_BYTES
-                each, change num_sequences_per_file to fit the data file size 
-                '''
+                file_path = os.path.join(data_dir, 'data', str(i), 't{}_r{}_{}m'.format(i+1, sensor_type, d))
                 file_size = os.path.getsize(file_path)
                 with open(file_path, mode='rb') as f:
                     for _ in range(num_sequences_per_file):
@@ -33,13 +28,17 @@ def convert(data_dir, out_file_name, num_sequences_per_file):
     print(os.path.getsize(out_path))
 
 def main(args):
-    convert(args.data_dir, args.out_file_name, args.num_sequences_per_file)
+    if args.sensor_type is None:
+        print('Please specify sensor type')
+        return
+    convert(args.sensor_type, args.data_dir, args.out_file_name, args.num_sequences_per_file)
 
 if __name__ == '__main__':  
     parser = argparse.ArgumentParser()
+    parser.add_argument('--sensor_type', type=int, default=None, help='sensor type')
     parser.add_argument('--data_dir', type=str, default=os.getcwd(), help='data file directory')
-    parser.add_argument('--out_file_name', type=str, default='all_data', help='output file name')
-    parser.add_argument('--num_sequences_per_file', type=int, default=25, help='number of sequences to extract from each data file')
+    parser.add_argument('--out_file_name', type=str, default='extracted_data', help='output file name')
+    parser.add_argument('--num_sequences_per_file', type=int, default=5000, help='number of sequences to extract from each data file')
 
     args = parser.parse_args()
     main(args)

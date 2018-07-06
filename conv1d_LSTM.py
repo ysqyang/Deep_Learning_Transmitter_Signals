@@ -32,13 +32,13 @@ class Conv1d_LSTM_Model():
                 for l in self.layers:
                     if type(l[0]) is int:
                         inputs = tf.layers.conv1d(
-                            inputs=inputs, kernel_size=l[0], filters=l[1])
+                            inputs=inputs, kernel_size=l[0], filters=l[1], padding='same')
                     elif l[0] == 'MAX':
                         inputs = tf.layers.max_pooling1d(
-                            inputs=inputs, pool_size=l[1], strides=l[2])
+                            inputs=inputs, pool_size=l[1], strides=l[2], padding='same')
                     elif l[0] == 'AVG':
                         inputs = tf.layers.average_pooling1d(
-                            inputs=inputs, pool_size=l[1], strides=l[2])
+                            inputs=inputs, pool_size=l[1], strides=l[2], padding='same')
             if type(self.n_units) is list:
                 multi_cells = [tf.contrib.rnn.LSTMCell(size) for size in self.n_units]
                 cell = tf.contrib.rnn.MultiRNNCell(multi_cells)
