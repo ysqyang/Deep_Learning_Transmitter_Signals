@@ -18,7 +18,7 @@ each of which consists of 2 points
 _RECORD_BYTES = _DEFAULT_SEQUENCE_LENGTH*2 + 1     
 _NUM_SEQUENCES = {
     'train': 40000,
-    'validation': 10000
+    'validate': 10000
 }
 
 def get_filename(is_training, data_dir, sensor_type):
@@ -27,11 +27,11 @@ def get_filename(is_training, data_dir, sensor_type):
     if is_training:
         return os.path.join(data_dir, 'train_r{}'.format(sensor_type)) 
     else:
-        return os.path.join(data_dir, 'validation_r{}'.format(sensor_type))
+        return os.path.join(data_dir, 'validate_r{}'.format(sensor_type))
 
 def parse_record(raw_record):   
     record = tf.decode_raw(raw_record, _DEFAULT_DECODE_DTYPE)
-    label = record[0]
+    label = tf.cast(record[0], tf.int32)
     sequence = tf.reshape(record[1:], (_DEFAULT_SEQUENCE_LENGTH, _NUM_CHANNELS))
     return sequence, label
 
@@ -75,8 +75,7 @@ def input_fn(is_training, data_dir, batch_size, sensor_type, num_epochs=1):
       num_epochs=num_epochs
     )   
 
-def build_tensor_serving_input_receiver_fn(shape, dtype=tf.float32,
-                                           batch_size=1):
+def build_tensor_serving_input_receiver_fn(shape, dtype=tf.float32, batch_size=1):
     """Returns a input_receiver_fn that can be used during serving.
     Args:
     shape: list representing target size of a single example.
@@ -129,8 +128,7 @@ def conv1d_LSTM_model_fn(features, labels, mode, params):
     current mode.
     """
     features = tf.cast(features, params['dtype'])
-    tf.summary.audio(name='signals', tensor=features, sample_rate=100)
-    labels = tf.cast(labels, tf.int32)
+    #.summary.audio(name='signals', tensor=features, sample_rate=100)
     model = conv1d_LSTM.Conv1d_LSTM_Model(layers=params['layers'], n_units=params['n_units'],
                                           n_classes=params['n_classes'], dtype=params['dtype'])
     
@@ -268,8 +266,7 @@ def main(args, model_function, input_function, shape):
         eval_results = classifier.evaluate(input_fn=input_fn_eval, steps=args.max_train_steps)
    
     # Exports a saved model for the given classifier.
-    input_receiver_fn = build_tensor_serving_input_receiver_fn(
-        shape, batch_size=args.batch_size)
+    input_receiver_fn = build_tensor_serving_input_receiver_fn(shape, batch_size=args.batch_size)
     classifier.export_savedmodel(export_dir, input_receiver_fn)
 
 if __name__ == '__main__':  
@@ -277,12 +274,12 @@ if __name__ == '__main__':
     parser.add_argument('--sensor_type', type=int, default=None, help='sensor type')
     parser.add_argument('--data_format', type=str, default='channels_last', help='data format of input features')
     parser.add_argument('--batch_size', type=int, default=200, help='batch size')
-    parser.add_argument('--train_epochs', type=int, default=250, help='number of training epochs')
+    parser.add_argument('--train_epochs', type=int, default=25, help='number of training epochs')
     parser.add_argument('--epochs_between_evals', type=int, default=10, help='number of epochs between successive evaluations')
-    parser.add_argument('--max_train_steps', type=int, default=10000, help='maxumum number of training steps')
+    parser.add_argument('--max_train_steps', type=int, default=2000, help='maxumum number of training steps')
     parser.add_argument('--loss_scale', type=int, default=1, help='scaling factor for loss')   
     parser.add_argument('--data_dir', type=str, default=os.getcwd(), help='directory to read data from')
 
     args = parser.parse_args()  
   
-    main(args, conv1d_LSTM_model_fn, input_fn)
+    main(args, conv1d_LSTM_model_fn, input_fn, shape=[_DEFAULT_SEQUENCE_LENGTH, _NUM_CHANNELS])
