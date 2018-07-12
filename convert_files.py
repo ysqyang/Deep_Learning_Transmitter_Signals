@@ -26,7 +26,7 @@ def convert(sensor_type, data_dir, out_file_name, num_sequences_per_file, mode):
                         out_file.write(sequence)  
 
     out_path = os.path.join(data_dir, out_file_name)
-    print(os.path.getsize(out_path))
+    print('output file size: ', os.path.getsize(out_path))
 
 def main(args):
     if args.sensor_type is None:
