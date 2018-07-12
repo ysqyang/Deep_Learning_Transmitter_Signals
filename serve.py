@@ -21,7 +21,7 @@ def main(args):
         predict_fn = tf.contrib.predictor.from_saved_model(args.export_dir)
         outputs = predict_fn({'input': inputs})
         predictions = outputs['classes']
-        print(predictions)  
+        print('predictions: ', predictions)  
 
 if __name__ == '__main__':  
     parser = argparse.ArgumentParser()  

@@ -75,7 +75,7 @@ def input_fn(is_training, data_dir, batch_size, sensor_type, num_epochs=1):
       num_epochs=num_epochs
     )   
 
-def build_tensor_serving_input_receiver_fn(shape, dtype=tf.float32, batch_size=1):
+def build_tensor_serving_input_receiver_fn(shape, dtype=tf.float32, batch_size=None):
     """Returns a input_receiver_fn that can be used during serving.
     Args:
     shape: list representing target size of a single example.
@@ -266,7 +266,7 @@ def main(args, model_function, input_function, shape):
         eval_results = classifier.evaluate(input_fn=input_fn_eval, steps=args.max_train_steps)
    
     # Exports a saved model for the given classifier.
-    input_receiver_fn = build_tensor_serving_input_receiver_fn(shape, batch_size=args.batch_size)
+    input_receiver_fn = build_tensor_serving_input_receiver_fn(shape)
     classifier.export_savedmodel(export_dir, input_receiver_fn)
 
 if __name__ == '__main__':  
