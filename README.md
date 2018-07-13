@@ -4,7 +4,7 @@
 
 The model is defined in conv_1d_LSTM.py. This model features a recurrent neural network (RNN) that consists of long short-term memory (LSTM) units, with a single fully connected layer at the top and optional 1D convolution and pooling layers at the bottom. The convolution and pooling layers can be added through the _LAYERS argument using the format described in the comment. 
 
-## Converting data files for training purposes
+## Converting data files for training  
 
 The script convert_files.py converts raw binary data files into a format that can be readily used for training and evaluation purposes. The program has the following command line arguments:
 
