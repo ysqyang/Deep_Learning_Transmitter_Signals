@@ -29,14 +29,11 @@ def convert(sensor_type, data_dir, out_file_name, num_sequences_per_file, mode):
     print('output file size: ', os.path.getsize(out_path))
 
 def main(args):
-    if args.sensor_type is None:
-        print('Please specify sensor type')
-        return
     convert(args.sensor_type, args.data_dir, args.out_file_name, args.num_sequences_per_file, args.mode)
 
 if __name__ == '__main__':  
     parser = argparse.ArgumentParser()
-    parser.add_argument('--sensor_type', type=int, default=None, help='sensor type')
+    parser.add_argument('sensor_type', type=int, default=None, help='sensor type')
     parser.add_argument('--mode', type=str, default='train', help='mode, must be train, validate or predict')
     parser.add_argument('--data_dir', type=str, default=os.getcwd(), help='data file directory')
     parser.add_argument('--out_file_name', type=str, default='extracted_data', help='output file name')

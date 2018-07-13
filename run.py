@@ -271,12 +271,12 @@ def main(args, model_function, input_function, shape):
 
 if __name__ == '__main__':  
     parser = argparse.ArgumentParser()  
-    parser.add_argument('--sensor_type', type=int, default=None, help='sensor type')
+    parser.add_argument('sensor_type', type=int, default=None, help='sensor type')
     parser.add_argument('--data_format', type=str, default='channels_last', help='data format of input features')
     parser.add_argument('--batch_size', type=int, default=200, help='batch size')
-    parser.add_argument('--train_epochs', type=int, default=25, help='number of training epochs')
-    parser.add_argument('--epochs_between_evals', type=int, default=10, help='number of epochs between successive evaluations')
-    parser.add_argument('--max_train_steps', type=int, default=2000, help='maxumum number of training steps')
+    parser.add_argument('--train_epochs', type=int, default=100, help='number of training epochs')
+    parser.add_argument('--epochs_between_evals', type=int, default=10, help='number of epochs between evaluations')
+    parser.add_argument('--max_train_steps', type=int, default=20000, help='maxumum number of training steps')
     parser.add_argument('--loss_scale', type=int, default=1, help='scaling factor for loss')   
     parser.add_argument('--data_dir', type=str, default=os.getcwd(), help='directory to read data from')
 

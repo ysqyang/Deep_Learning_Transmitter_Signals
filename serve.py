@@ -25,7 +25,7 @@ def main(args):
 
 if __name__ == '__main__':  
     parser = argparse.ArgumentParser()  
-    parser.add_argument('--sensor_type', type=int, default=None, help='sensor type')
+    parser.add_argument('sensor_type', type=int, default=None, help='sensor type')
     parser.add_argument('--batch_size', type=int, default=200, help='batch size')  
     parser.add_argument('--data_dir', type=str, default=os.getcwd(), help='directory to read data from')
     parser.add_argument('--export_dir', type=str, default=os.getcwd(), help='directory to load trained model from')
