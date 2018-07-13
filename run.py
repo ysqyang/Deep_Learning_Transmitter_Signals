@@ -87,7 +87,7 @@ def build_tensor_serving_input_receiver_fn(shape, dtype=tf.float32, batch_size=N
     def serving_input_receiver_fn():
         # Prep a placeholder where the input example will be fed in
         features = tf.placeholder(
-            dtype=dtype, shape=[batch_size] + shape, name='input_tensor')
+            dtype=dtype, shape=[batch_size] + shape, name='input')
 
         return tf.estimator.export.TensorServingInputReceiver(
             features=features, receiver_tensors=features)
