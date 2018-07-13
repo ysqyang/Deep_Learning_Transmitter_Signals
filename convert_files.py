@@ -29,6 +29,9 @@ def convert(sensor_type, data_dir, out_file_name, num_sequences_per_file, mode):
     print('output file size: ', os.path.getsize(out_path))
 
 def main(args):
+    if args.sensor_type not in range(1, run._NUM_SENSOR_TYPES+1):
+        print('Sensor type must be between 1 and {}'.format(run._NUM_SENSOR_TYPES))
+        return
     convert(args.sensor_type, args.data_dir, args.out_file_name, args.num_sequences_per_file, args.mode)
 
 if __name__ == '__main__':  

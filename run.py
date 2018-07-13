@@ -7,6 +7,7 @@ import numpy as np
 _LAYERS = None
 _NUM_CHANNELS = 2
 _NUM_CLASSES = 2
+_NUM_SENSOR_TYPES = 3
 _NUM_UNITS = 200
 _DEFAULT_DECODE_DTYPE = tf.uint8
 _DEFAULT_SEQUENCE_LENGTH = 1000
@@ -209,8 +210,8 @@ def main(args, model_function, input_function, shape):
     all the relevant flags for running and passed to estimator.
     shape: list of ints representing the shape of the inputs used for training.
     """
-    if args.sensor_type not in range(1, _NUM_CLASSES+1):
-        print('Sensor type must be between 1 and {}'.format(_NUM_CLASSES))
+    if args.sensor_type not in range(1, _NUM_SENSOR_TYPES+1):
+        print('Sensor type must be between 1 and {}'.format(_NUM_SENSOR_TYPES))
         return
 
     model_dir = 'model_r{}'.format(args.sensor_type)

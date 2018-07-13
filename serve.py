@@ -15,6 +15,9 @@ def input_fn(data_dir, batch_size, sensor_type):
     return sequences
 
 def main(args):
+    if args.sensor_type not in range(1, run._NUM_SENSOR_TYPES+1):
+        print('Sensor type must be between 1 and {}'.format(run._NUM_SENSOR_TYPES))
+        return
     inputs = input_fn(args.data_dir, args.batch_size, args.sensor_type)
     with tf.Session() as sess:
         tf.saved_model.loader.load(sess, [tf.saved_model.tag_constants.SERVING], args.export_dir)
