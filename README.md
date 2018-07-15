@@ -35,7 +35,6 @@ When the program is run, two directories, './model_r<sensor_type>' and './export
 The script serve.py loads a saved model from disk which generates predictions for new data and prints them out as a list in the console.
 The program has the following command line arguments:
 
-sensor_type: sensor type; must be between 1 and NUM_SENSOR_TYPES defined in run.py
---batch_size: batch size used during serving; defaults to 200  
+sensor_type: sensor type; must be between 1 and NUM_SENSOR_TYPES defined in run.py  
 --data_dir: directory in which the data files are located; defaults to the same dir as the script  
 --export_dir: directory in which the trained model is located; defaults to the same dir as the script  
