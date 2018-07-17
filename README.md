@@ -9,11 +9,11 @@ The model is defined in conv_1d_LSTM.py. This model features a recurrent neural 
 The script convert_files.py converts raw binary data files into a format that can be readily used for training and evaluation purposes. The program has the following command line arguments:
 
 sensor_type: sensor type; must be between 1 and NUM_SENSOR_TYPES defined in run.py
---out_file_name: name of converted file; defaults to "extracted_data"  
+--mode: must be one of "train", "validate", "predict" 
 --data_dir: directory in which the original data files are located; defaults to the same dir as the script  
 --num_sequences_per_file: the number of sequences to extract from each file; defaults to 5000  
 
-Once the arguments are specified, the program extracts args.num_sequences_per_file sequences from each file at random offsets and writes them to the output file. Eqch extracted sequence has a fixed length specified by a constant from run.py and represents a training instance. A label (i.e., transmitter type 0 or 1) is added at the beginning of each sequence written to facilitate subsequent training and evaluation.
+Once the arguments are specified, the program extracts args.num_sequences_per_file sequences from each file at random offsets and writes them to an output file named "<mode>_r<sensor_type>". Each extracted sequence has a fixed length specified by a constant from run.py and represents a training instance. A label (i.e., transmitter type 0 or 1) is added at the beginning of each sequence written to facilitate subsequent training and evaluation.
 
 ## Training and evaluation
 
