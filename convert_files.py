@@ -32,14 +32,14 @@ def main(args):
     if args.sensor_type not in range(1, run._NUM_SENSOR_TYPES+1):
         print('Sensor type must be between 1 and {}'.format(run._NUM_SENSOR_TYPES))
         return
-    convert(args.sensor_type, args.data_dir, args.out_file_name, args.num_sequences_per_file, args.mode)
+    out_file_name = '{}_r{}'.format(args.mode, args.sensor_type)
+    convert(args.sensor_type, args.data_dir, out_file_name, args.num_sequences_per_file, args.mode)
 
 if __name__ == '__main__':  
     parser = argparse.ArgumentParser()
     parser.add_argument('sensor_type', type=int, default=None, help='sensor type')
     parser.add_argument('--mode', type=str, default='train', help='mode, must be train, validate or predict')
     parser.add_argument('--data_dir', type=str, default=os.getcwd(), help='data file directory')
-    parser.add_argument('--out_file_name', type=str, default='extracted_data', help='output file name')
     parser.add_argument('--num_sequences_per_file', type=int, default=5000, help='number of sequences to extract from each data file')
 
     args = parser.parse_args()
