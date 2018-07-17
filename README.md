@@ -13,7 +13,7 @@ sensor_type: sensor type; must be between 1 and NUM_SENSOR_TYPES defined in run.
 --data_dir: directory in which the original data files are located; defaults to the same dir as the script  
 --num_sequences_per_file: the number of sequences to extract from each file; defaults to 5000  
 
-Once the arguments are specified, the program extracts args.num_sequences_per_file sequences from each file at random offsets and writes them to an output file named '\<mode\>_r<sensor_type>'. Each extracted sequence has a fixed length specified by a constant from run.py and represents a training instance. A label (i.e., transmitter type 0 or 1) is added at the beginning of each sequence written to facilitate training and evaluation. 
+Once the arguments are specified, the program extracts args.num_sequences_per_file sequences from each file at random offsets and writes them to an output file named "\<mode\>_r/<sensor_type/>". This file name will be recognized by run.py or serve.py. Each extracted sequence has a fixed length specified by a constant from run.py and represents a training instance. A label (i.e., transmitter type 0 or 1) is added at the beginning of each sequence written to facilitate training and evaluation. 
 
 ## Training and evaluation
 
@@ -28,7 +28,7 @@ sensor_type: sensor type; must be between 1 and NUM_SENSOR_TYPES defined in run.
 --loss_scale: scaling factor for loss; defaults to 1  
 --data_dir, directory in which the converted data files are stored; defaults to the same dir as the script  
 
-When the program is run, two directories, './model_r<sensor_type>' and './export_r<sensor_type>' are created. Data related to computation graphs, tf.summary and checkpoints are saved under './model_r<sensor_type>'. When training completes, the trained model is saved as a SavedModel under './export_r<sensor_type>' for future serving. If either of the directories already exists, the program prints an error message and exits. So make sure to delete or rename any existng directories with the same name before running the script.  
+When the program is run, two directories, "./model_r<sensor_type>" and "./export_r<sensor_type>" are created. Data related to computation graphs, tf.summary and checkpoints are saved under "./model_r<sensor_type>". When training completes, the trained model is saved as a SavedModel under "./export_r<sensor_type>" for future serving. If either of the directories already exists, the program prints an error message and exits. So make sure to delete or rename any existng directories with the same name before running the script.  
 
 ## Serving
 
